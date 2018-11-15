@@ -16,7 +16,7 @@ class ElasticsearchEngine extends Engine
      * @var string
      */
     protected $index;
-    
+
     /**
      * Elastic where the instance of Elastic|\Elasticsearch\Client is stored.
      *
@@ -46,12 +46,11 @@ class ElasticsearchEngine extends Engine
     {
         $params['body'] = [];
 
-        $models->each(function($model) use (&$params)
-        {
+        $models->each(function ($model) use (&$params) {
             $params['body'][] = [
                 'update' => [
                     '_id' => $model->getKey(),
-                    '_index' => $this->index,
+                    '_index' => $model->searchableAs(),
                     '_type' => $model->searchableAs(),
                 ]
             ];
@@ -74,12 +73,11 @@ class ElasticsearchEngine extends Engine
     {
         $params['body'] = [];
 
-        $models->each(function($model) use (&$params)
-        {
+        $models->each(function ($model) use (&$params) {
             $params['body'][] = [
                 'delete' => [
                     '_id' => $model->getKey(),
-                    '_index' => $this->index,
+                    '_index' => $this->searchableAs(),
                     '_type' => $model->searchableAs(),
                 ]
             ];
@@ -118,7 +116,7 @@ class ElasticsearchEngine extends Engine
             'size' => $perPage,
         ]);
 
-       $result['nbPages'] = $result['hits']['total']/$perPage;
+        $result['nbPages'] = $result['hits']['total']/$perPage;
 
         return $result;
     }
@@ -133,7 +131,7 @@ class ElasticsearchEngine extends Engine
     protected function performSearch(Builder $builder, array $options = [])
     {
         $params = [
-            'index' => $this->index,
+            'index' => $builder->model->searchableAs(),
             'type' => $builder->index ?: $builder->model->searchableAs(),
             'body' => [
                 'query' => [
@@ -157,8 +155,10 @@ class ElasticsearchEngine extends Engine
         }
 
         if (isset($options['numericFilters']) && count($options['numericFilters'])) {
-            $params['body']['query']['bool']['must'] = array_merge($params['body']['query']['bool']['must'],
-                $options['numericFilters']);
+            $params['body']['query']['bool']['must'] = array_merge(
+                $params['body']['query']['bool']['must'],
+                $options['numericFilters']
+            );
         }
 
         if ($builder->callback) {
@@ -219,7 +219,8 @@ class ElasticsearchEngine extends Engine
                         ->pluck('_id')->values()->all();
 
         $models = $model->getScoutModelsByIds(
-            $builder, $keys
+            $builder,
+            $keys
         )->keyBy(function ($model) {
             return $model->getScoutKey();
         });
@@ -252,7 +253,7 @@ class ElasticsearchEngine extends Engine
             return null;
         }
 
-        return collect($builder->orders)->map(function($order) {
+        return collect($builder->orders)->map(function ($order) {
             return [$order['column'] => $order['direction']];
         })->toArray();
     }
